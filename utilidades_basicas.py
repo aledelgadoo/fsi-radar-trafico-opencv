@@ -91,11 +91,16 @@ def obtener_fondo(video, ancho, alto):
     return fondo
 
 
-def quitar_fondo(video, fondo):
+def quitar_fondo(video, fondo, ancho, alto):
+    """
+    Resta el fondo estático de un vídeo para resaltar los objetos en movimiento.
+    <video>: ruta del archivo de vídeo
+    <fondo>: ruta de la imagen de fondo
+    <ancho>, <alto>: dimensiones a las que se redimensionarán ambos
+    """
     cap = leer_video(video)
-    fondo = cv2.imread(fondo)  # Leer imagen desde disco
-    fondo = cv2.resize(fondo, (400, 300)) # Cambiamos el tamaño para coincida con el del video
-    fondo = fondo.astype(np.uint8)
+    # Leemos la imagen, la redimensionamos, y la cambiamos al formato uint8 para poder trabajar con ella
+    fondo = cv2.resize(cv2.imread(fondo), (ancho, alto)).astype(np.uint8)
 
     # Recorremos el video
     while(True):
@@ -106,8 +111,8 @@ def quitar_fondo(video, fondo):
             print("Fin del vídeo")
             break
 
-        # Ajustamos para que el vídeo ocupe menos
-        frame = cv2.resize(frame, (400, 300))
+        # Ajustamos para que el vídeo coincida con las dimensiones del fondo
+        frame = cv2.resize(frame, (ancho, alto))
 
         # Restamos
         diferencia = cv2.absdiff(frame, fondo)
