@@ -126,6 +126,7 @@ def quitar_fondo(video, fondo, ancho, alto):
     cv2.destroyAllWindows()
     cap.release()
 
+
 def quitar_fondo_umbralizado(video, fondo, ancho, alto):    
     """
     Resta el fondo estático de un vídeo y umbraliza la diferencia
@@ -167,3 +168,50 @@ def quitar_fondo_umbralizado(video, fondo, ancho, alto):
 
     cv2.destroyAllWindows()
     cap.release()
+
+
+def detectar_coches(video, fondo, ancho, alto):
+    """
+    Detecta los vehículos (blobs) en movimiento a partir del vídeo <video> y el fondo <fondo>.
+    Muestra en pantalla los contornos detectados en cada frame.
+    """
+    cap = leer_video(video)
+    fondo = cv2.resize(cv2.imread(fondo), (ancho, alto)).astype(np.uint8)
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            print("Fin del vídeo")
+            break
+
+        frame = cv2.resize(frame, (ancho, alto))
+        diferencia = cv2.absdiff(frame, fondo)
+
+        # Convertimos a escala de grises (solo necesitamos intensidad, no color)
+        gris = cv2.cvtColor(diferencia, cv2.COLOR_BGR2GRAY)
+
+        # Umbralizamos para quedarnos con zonas de movimiento
+        _, umbral = cv2.threshold(gris, 40, 255, cv2.THRESH_BINARY)
+
+        # Aplicamos operaciones morfológicas
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        umbral = cv2.morphologyEx(umbral, cv2.MORPH_CLOSE, kernel)  # cierra huecos
+        umbral = cv2.morphologyEx(umbral, cv2.MORPH_OPEN, kernel)   # quita ruido
+
+        # Buscamos contornos (posibles coches)
+        contornos, _ = cv2.findContours(umbral, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        for cont in contornos:
+            area = cv2.contourArea(cont)
+            if area > 350:  # filtra ruido: ajusta este umbral según el vídeo
+                x, y, w, h = cv2.boundingRect(cont)
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+        cv2.imshow('Coches detectados', frame)
+        cv2.imshow('Máscara movimiento', umbral)
+
+        if cv2.waitKey(5) & 0xFF == 27:
+            break
+
+    cap.release()
+    cv2.destroyAllWindows()

@@ -10,7 +10,8 @@ def main():
     # visualizar_video(video, ancho, alto)
     # obtener_fondo(video, ancho, alto)
     # quitar_fondo(video, fondo, ancho, alto)
-    quitar_fondo_umbralizado(video, fondo, ancho, alto)
+    # quitar_fondo_umbralizado(video, fondo, ancho, alto)
+    detectar_coches(video, fondo, ancho, alto)
 
 if __name__ == "__main__":
     main()
