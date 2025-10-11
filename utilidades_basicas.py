@@ -192,21 +192,33 @@ def detectar_coches(video, fondo, ancho, alto):
 
         # Umbralizamos para quedarnos con zonas de movimiento
         _, umbral = cv2.threshold(gris, 40, 255, cv2.THRESH_BINARY)
+        # cv2.threshold binariza gris: todos los píxeles con valor > 40 pasan a 255 (blanco), el resto a 0 (negro)
+        # 40 es el umbral (sensibilidad): más bajo → más sensible; más alto → menos falsas detecciones
+        # <_> es el umbral usado (lo ignoramos), <umbral> es la imagen binaria
 
         # Aplicamos operaciones morfológicas
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        # Crea un kernel rectangular 5×5 (matriz de 1s) que se usará para las operaciones morfológicas
+        # Controla cuánto se “engrosan/recortan” regiones: mayor kernel → cambios más fuertes
+        
         umbral = cv2.morphologyEx(umbral, cv2.MORPH_CLOSE, kernel)  # cierra huecos
         umbral = cv2.morphologyEx(umbral, cv2.MORPH_OPEN, kernel)   # quita ruido
 
         # Buscamos contornos (posibles coches)
         contornos, _ = cv2.findContours(umbral, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        # cv2.findContours detecta los contornos en la imagen binaria umbral
+        # cv2.RETR_EXTERNAL toma solo los contornos externos (ignora contornos interiores)
+        # cv2.CHAIN_APPROX_SIMPLE comprime los puntos del contorno para ahorrar memoria
+        # Devuelve contornos (lista de arrays con puntos) y una jerarquía (aquí ignorada con _)
 
         for cont in contornos:
-            area = cv2.contourArea(cont)
-            if area > 350:  # filtra ruido: ajusta este umbral según el vídeo
-                x, y, w, h = cv2.boundingRect(cont)
-                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            area = cv2.contourArea(cont) # Iteramos cada contorno y calculamos su área en píxeles
+            if area > 350:  # filtra ruido: ajustamos este umbral según el vídeo
+                x, y, w, h = cv2.boundingRect(cont) # cv2.boundingRect devuelve el rectángulo mínimo alineado a los ejes que contiene el contorno
+                # x, y = coordenadas de la esquina superior izquierda; w, h = ancho y alto del rectángulo
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2) # Dibuja un rectángulo verde
 
+        # Ventanas a mostrar
         cv2.imshow('Coches detectados', frame)
         cv2.imshow('Máscara movimiento', umbral)
 
