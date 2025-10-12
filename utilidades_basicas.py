@@ -170,7 +170,7 @@ def quitar_fondo_umbralizado(video, fondo, ancho, alto):
     cap.release()
 
 
-def detectar_coches(video, fondo, ancho, alto):
+def detectar_coches(video, fondo, ancho, alto, min_area):
     """
     Detecta los vehículos (blobs) en movimiento a partir del vídeo <video> y el fondo <fondo>.
     Muestra en pantalla los contornos detectados en cada frame.
@@ -195,6 +195,8 @@ def detectar_coches(video, fondo, ancho, alto):
         # Eliminar el timestamp (píxeles cambiantes de la fecha/hora)
         cv2.rectangle(frame, (x_txt, y_txt), (x_txt + w_txt, y_txt + h_txt), (0, 0, 0), -1)
         cv2.rectangle(fondo, (x_txt, y_txt), (x_txt + w_txt, y_txt + h_txt), (0, 0, 0), -1)
+        #Dibuja rectángulos: (x_txt, y_txt) es la esquina superior izquierda y la otra coordenada es la
+        #inferior derecha. (0, 0, 0) indica color negro y -1 que el relleno sea sólido (completo).
 
         diferencia = cv2.absdiff(frame, fondo)
 
@@ -216,20 +218,20 @@ def detectar_coches(video, fondo, ancho, alto):
         umbral = cv2.morphologyEx(umbral, cv2.MORPH_OPEN, kernel)   # quita ruido
 
         #Aplicamos la máscara de la ROI
-        mask = np.zeros_like(umbral)
-        mask[y1:y2, x1:x2] = 255
-        umbral_roi = cv2.bitwise_and(umbral, mask)
+        mask = np.zeros_like(umbral) # crea una imagen en negro del tamaño de la imagen umbral
+        mask[y1:y2, x1:x2] = 255 # Pone los pixeles de la zona de interes en la imagen mask en blanco
+        umbral_roi = cv2.bitwise_and(umbral, mask) # Se aplica un AND de ambas imágenes, eliminando los píxeles blancos que no están en la ROI y conservando los que sí
 
         # Buscamos contornos (posibles coches)
         contornos, _ = cv2.findContours(umbral_roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        # cv2.findContours detecta los contornos en la imagen binaria umbral
+        # cv2.findContours detecta los contornos en la imagen binaria umbral_roi
         # cv2.RETR_EXTERNAL toma solo los contornos externos (ignora contornos interiores)
         # cv2.CHAIN_APPROX_SIMPLE comprime los puntos del contorno para ahorrar memoria
         # Devuelve contornos (lista de arrays con puntos) y una jerarquía (aquí ignorada con _)
 
         for cont in contornos:
             area = cv2.contourArea(cont) # Iteramos cada contorno y calculamos su área en píxeles
-            if area > 40:  # filtra ruido: ajustamos este umbral según el vídeo
+            if area > min_area:  # filtra ruido: ajustamos este umbral según el vídeo
                 x, y, w, h = cv2.boundingRect(cont) # cv2.boundingRect devuelve el rectángulo mínimo alineado a los ejes que contiene el contorno
                 # x, y = coordenadas de la esquina superior izquierda; w, h = ancho y alto del rectángulo
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2) # Dibuja un rectángulo verde
