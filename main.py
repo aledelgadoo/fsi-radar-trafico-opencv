@@ -16,7 +16,8 @@ def main():
     # quitar_fondo(video, fondo, ancho, alto)
     # quitar_fondo_umbralizado(video, fondo, ancho, alto)
     # detectar_coches(video, fondo, ancho, alto, min_area)
-    contar_coches(video, fondo, ancho, alto, linea_y, min_area, min_dist)
+    # contar_coches(video, fondo, ancho, alto, linea_y, min_area, min_dist)
+    detectar_cochesV2(video, fondo, ancho, alto)
 
 if __name__ == "__main__":
     main()

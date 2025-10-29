@@ -11,7 +11,7 @@ class Vehiculo(ABC):
     """
     _next_id = 0  # Atributo de clase para manejar las ids
 
-    def __init__(self, id, centroide, bbox, frame_img, frame_num):
+    def __init__(self, centroide, bbox, frame_img, frame_num):
         self.id = Vehiculo._next_id   # id del vehiculo al instanciar
         Vehiculo._next_id += 1        # Manejamos las ids con el atributo estático
 
@@ -39,10 +39,10 @@ class Vehiculo(ABC):
         self.frames_perdido = 0
         self.historial.append(nuevo_centroide)
 
-    def marcar_perdido(self):
+    def marcar_perdido(self, limite):
         """Incrementa el contador de frames perdidos."""
         self.frames_perdido += 1
-        if self.frames_perdido > 10:  # se puede ajustar
+        if self.frames_perdido > limite:  # se puede ajustar
             self.activo = False
 
     def es_mismo_vehiculo(self, otro_centroide, umbral_distancia=50):
@@ -52,7 +52,6 @@ class Vehiculo(ABC):
         """
         return self.distancia_a(otro_centroide) < umbral_distancia
     
-    @abstractmethod
     def tipo(self):
         """Devuelve el tipo de vehículo (debe implementarse en subclases)."""
         pass
@@ -68,5 +67,5 @@ class Coche(Vehiculo):
         super().__init__(centroide, bbox, frame_img, frame_num)
         self.tipo = "Coche"
 
-    def get_tipo(self):
+    def tipo(self):
         return self.tipo
