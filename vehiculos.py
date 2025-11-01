@@ -1,31 +1,15 @@
-from abc import ABC, abstractmethod
 import numpy as np
 import cv2
 
-from abc import ABC, abstractmethod
-import numpy as np
-import cv2
-
-class Vehiculo(ABC):
-    """
-    Clase base abstracta.
-    (La dejamos por si en el futuro queremos 'Motos' o 'Camiones' 
-    con físicas distintas, pero ahora no la usaremos directamente).
-    """
-    _next_id = 0
-
-    def predecir(self):
-        pass
-
-    def corregir(self, medicion):
-        pass
-
-class Coche(Vehiculo):
+class Vehiculo():
     """
     Representa un vehículo individual.
     Ahora incluye un Filtro de Kalman para predecir su movimiento 
     y estimar su velocidad.
     """
+
+    _next_id = 0
+    
     def __init__(self, centroide, bbox, frame_num):
         self.id = Vehiculo._next_id
         Vehiculo._next_id += 1
@@ -36,6 +20,7 @@ class Coche(Vehiculo):
         self.frames_perdido = 0
         self.frames_activo = 1
         self.sentido = None
+        self.tipo = 'Indefinido'
 
         # --- INICIO DEL FILTRO DE KALMAN ---
         # 1. Creamos el filtro

@@ -8,7 +8,7 @@ def main():
     p_ruta_fondo = 'images/(trafico)-fondo_sin_coches.jpg' 
     
     # --- Panel de control de parámetros ---
-    p_escala = 0.3              
+    p_escala = 0.55              
     p_umbral_sensibilidad = 30  
     p_min_area_base = 230       
     p_kernel_size_base = 7      
@@ -17,7 +17,7 @@ def main():
     p_frames_confirmacion = 5   
     p_roi_base = [280, 965, 0, 1920]
 
-    p_filtro_sentido = 'BAJA'
+    p_filtro_sentido = 'SUBE'
     p_mostrar_texto_velocidad = True
     p_mostrar_texto_sentido = True
     p_mostrar_id = True
@@ -27,7 +27,14 @@ def main():
     p_mostrar_contador_historico = True
     p_mostrar_contador_subiendo = True
     p_mostrar_contador_bajando = True
+    p_mostrar_contador_motos = True
+    p_mostrar_contador_coches = True
+    p_mostrar_contador_camiones = True
+    p_mostrar_tipo_coche = True
     
+    p_area_moto_max_base = 50   # Área máxima para ser 'Moto'
+    p_area_coche_max_base = 14000 # Área máxima para ser 'Coche'
+    # (Lo que supere esto, será 'Camion')
     
     # --- Llamada a la función V2 ---
     detectar_cochesV2(
@@ -51,7 +58,14 @@ def main():
         mostrar_contador_activos=p_mostrar_contador_activos,
         mostrar_contador_historico=p_mostrar_contador_historico,
         mostrar_contador_subiendo=p_mostrar_contador_subiendo,
-        mostrar_contador_bajando=p_mostrar_contador_bajando
+        mostrar_contador_bajando=p_mostrar_contador_bajando,
+
+        area_moto_max_base=p_area_moto_max_base,
+        area_coche_max_base=p_area_coche_max_base,
+        mostrar_contador_motos=p_mostrar_contador_motos,
+        mostrar_contador_coches=p_mostrar_contador_coches,
+        mostrar_contador_camiones=p_mostrar_contador_camiones,
+        mostrar_tipo_coche=p_mostrar_tipo_coche
     )
 
     # --- Llamadas antiguas ---

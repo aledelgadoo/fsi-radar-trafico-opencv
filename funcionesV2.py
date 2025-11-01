@@ -23,7 +23,14 @@ def detectar_cochesV2(ruta_video, ruta_fondo,
                        mostrar_contador_activos=True,
                        mostrar_contador_historico=True,
                        mostrar_contador_subiendo=True,
-                       mostrar_contador_bajando=True):
+                       mostrar_contador_bajando=True,
+                       mostrar_contador_motos=True,
+                       mostrar_contador_coches=True,
+                       mostrar_contador_camiones=True,
+                       mostrar_tipo_coche=True,
+                       
+                       area_moto_max_base=5000,
+                       area_coche_max_base=25000,):
     
     # --- Inicialización ---
     cap = leer_video(ruta_video)
@@ -52,6 +59,9 @@ def detectar_cochesV2(ruta_video, ruta_fondo,
     kernel_size_val = int(np.ceil(kernel_size_base * escala)) // 2 * 2 + 1 # Ajusta el kernel (1D) a la escala y fuerza que sea impar
     kernel_escalado = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_size_val, kernel_size_val)) # Crea la matriz del kernel con el tamaño escalado
     umbral_dist_escalado = umbral_dist_base * escala # Ajusta la distancia (1D) de seguimiento a la escala
+
+    area_moto_max_escalada = area_moto_max_base * (escala**2)
+    area_coche_max_escalada = area_coche_max_base * (escala**2)
 
     # --- Escalado de Fuentes y Posiciones de Texto ---
     # Coordenadas base (para escala 1.0)
@@ -118,6 +128,11 @@ def detectar_cochesV2(ruta_video, ruta_fondo,
         contador_suben_rt = 0
         contador_bajan_rt = 0
 
+        # --- Contadores de tipo ---
+        contador_motos = 0
+        contador_coches = 0
+        contador_camiones = 0
+
         # Iteramos sobre los vehículos activos
         for v in gestor.vehiculos_activos():
             
@@ -146,6 +161,24 @@ def detectar_cochesV2(ruta_video, ruta_fondo,
                 
                 # --- Si pasa todos los filtros, lo contamos y dibujamos ---
                 contador_actual += 1
+
+                # --- Lógica de Clasificación por Tipo ---
+                # Si el tipo aún no está definido...
+                if v.tipo == 'Indefinido':
+                    # ...calculamos el área de su BBox (w * h)
+                    area_bbox = v.bbox[2] * v.bbox[3]
+                    
+                    if area_bbox < area_moto_max_escalada:
+                        v.tipo = 'Moto'
+                    elif area_bbox < area_coche_max_escalada:
+                        v.tipo = 'Coche'
+                    else:
+                        v.tipo = 'Camion'
+
+                # Contamos por tipo
+                if v.tipo == 'Moto': contador_motos += 1
+                elif v.tipo == 'Coche': contador_coches += 1
+                elif v.tipo == 'Camion': contador_camiones += 1
 
                 color_sentido = (255, 0, 0) # Azul (por defecto, si aún es None)
                 texto_sentido = '(...)'     # Texto por defecto
@@ -217,6 +250,23 @@ def detectar_cochesV2(ruta_video, ruta_fondo,
             cv2.putText(frame, f"Bajando: {contador_bajan_rt}", (pos_x_col2, pos_y + salto_y), 
                         cv2.FONT_HERSHEY_SIMPLEX, font_grande, (0, 0, 255), grosor_grande)
 
+        # -- Fila 3 ---
+        # Columna 1 (Motos)
+        if mostrar_contador_motos:
+            cv2.putText(frame, f"Motos: {contador_motos}", (pos_x, pos_y + 2*salto_y), 
+                        cv2.FONT_HERSHEY_SIMPLEX, font_grande, (255, 0, 255), grosor_grande)
+            
+        # Columna 2 (Coches)
+        if mostrar_contador_coches:
+            cv2.putText(frame, f"Coches: {contador_coches}", (int(new_size[0] * 1/3), pos_y + 2*salto_y), 
+                        cv2.FONT_HERSHEY_SIMPLEX, font_grande, (255, 0, 255), grosor_grande)
+            
+        # Columna 3 (Camiones)
+        if mostrar_contador_camiones:
+            # (Lo pongo en la siguiente línea para que no se solape)
+            cv2.putText(frame, f"Camiones: {contador_camiones}", (int(new_size[0] * 2/3), pos_y + 2*salto_y), 
+                        cv2.FONT_HERSHEY_SIMPLEX, font_grande, (255, 0, 255), grosor_grande)
+            
         # Dibujamos la ROI en el frame original para debug
         if roi_escalada and mostrar_roi:
             cv2.rectangle(frame, (roi_escalada[2], roi_escalada[0]), (roi_escalada[3], roi_escalada[1]), (255, 0, 0), 2)

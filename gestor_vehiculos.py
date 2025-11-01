@@ -72,7 +72,7 @@ class GestorVehiculos:
             else:
                 # --- CREAR ---
                 # No asociado: Es un vehículo nuevo
-                nuevo = Coche(centroide, bbox, frame_num)
+                nuevo = Vehiculo(centroide, bbox, frame_num)
                 self.vehiculos.append(nuevo)
         
         # --- PASO 4: MARCAR PERDIDOS (Oclusión) ---
