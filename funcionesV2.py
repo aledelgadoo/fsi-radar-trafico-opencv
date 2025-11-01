@@ -73,7 +73,7 @@ def detectar_cochesV2(ruta_video, ruta_fondo,
     # Fuentes base
     font_size_grande_base = 2.0
     font_size_peque_base = 0.8
-    grosor_grande_base = 5
+    grosor_grande_base = 4
     grosor_peque_base = 3
 
     # Valores escalados (con un mínimo para que no desaparezcan)
@@ -165,15 +165,22 @@ def detectar_cochesV2(ruta_video, ruta_fondo,
                 # --- Lógica de Clasificación por Tipo ---
                 # Si el tipo aún no está definido...
                 if v.tipo == 'Indefinido':
-                    # ...calculamos el área de su BBox (w * h)
-                    area_bbox = v.bbox[2] * v.bbox[3]
+                    x, y, w, h = v.bbox # Extraemos los valores de la caja
+                    area_bbox = w * h # Calculamos el área de su BBox (w * h)
                     
-                    if area_bbox < area_moto_max_escalada:
+                    # 1. Calcular Aspect Ratio
+                    # (Añadimos 'epsilon' para evitar dividir por cero si h=0)
+                    epsilon = 1e-6 
+                    aspect_ratio = w / (h + epsilon)
+                    
+                    # 2. Calcular Extent (Necesitamos el contorno original)
+                    # --- Lógica de decisión ---
+                    if area_bbox < area_moto_max_escalada and aspect_ratio < 0.8:
                         v.tipo = 'Moto'
-                    elif area_bbox < area_coche_max_escalada:
-                        v.tipo = 'Coche'
-                    else:
+                    elif area_bbox > area_coche_max_escalada and aspect_ratio > 1: # Ej: Camión
                         v.tipo = 'Camion'
+                    else:
+                        v.tipo = 'Coche'
 
                 # Contamos por tipo
                 if v.tipo == 'Moto': contador_motos += 1

@@ -8,7 +8,7 @@ def main():
     p_ruta_fondo = 'images/(trafico)-fondo_sin_coches.jpg' 
     
     # --- Panel de control de parámetros ---
-    p_escala = 0.55              
+    p_escala = 0.5              
     p_umbral_sensibilidad = 30  
     p_min_area_base = 230       
     p_kernel_size_base = 7      
@@ -17,7 +17,7 @@ def main():
     p_frames_confirmacion = 5   
     p_roi_base = [280, 965, 0, 1920]
 
-    p_filtro_sentido = 'SUBE'
+    p_filtro_sentido = None
     p_mostrar_texto_velocidad = True
     p_mostrar_texto_sentido = True
     p_mostrar_id = True
@@ -32,8 +32,8 @@ def main():
     p_mostrar_contador_camiones = True
     p_mostrar_tipo_coche = True
     
-    p_area_moto_max_base = 50   # Área máxima para ser 'Moto'
-    p_area_coche_max_base = 14000 # Área máxima para ser 'Coche'
+    p_area_moto_max_base = 1000   # Área máxima para ser 'Moto'
+    p_area_coche_max_base = 10000 # Área máxima para ser 'Coche'
     # (Lo que supere esto, será 'Camion')
     
     # --- Llamada a la función V2 ---
