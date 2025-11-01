@@ -14,7 +14,16 @@ def detectar_cochesV2(ruta_video, ruta_fondo,
                        max_frames_perdido=20,
                        frames_para_confirmar=8,
                        
-                       filtro_sentido=None):
+                       filtro_sentido=None,
+                       mostrar_texto_velocidad=False,
+                       mostrar_texto_sentido=False,
+                       mostrar_id=True,
+                       mostrar_roi=True,
+                       
+                       mostrar_contador_activos=True,
+                       mostrar_contador_historico=True,
+                       mostrar_contador_subiendo=True,
+                       mostrar_contador_bajando=True):
     
     # --- Inicialización ---
     cap = leer_video(ruta_video)
@@ -43,6 +52,29 @@ def detectar_cochesV2(ruta_video, ruta_fondo,
     kernel_size_val = int(np.ceil(kernel_size_base * escala)) // 2 * 2 + 1 # Ajusta el kernel (1D) a la escala y fuerza que sea impar
     kernel_escalado = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_size_val, kernel_size_val)) # Crea la matriz del kernel con el tamaño escalado
     umbral_dist_escalado = umbral_dist_base * escala # Ajusta la distancia (1D) de seguimiento a la escala
+
+    # --- Escalado de Fuentes y Posiciones de Texto ---
+    # Coordenadas base (para escala 1.0)
+    pos_x_base = 130
+    pos_y_base = 55
+    salto_y_base = 80
+    pos_x_col2 = new_size[0] // 2 # Mitad de la pantalla
+    
+    # Fuentes base
+    font_size_grande_base = 2.0
+    font_size_peque_base = 0.8
+    grosor_grande_base = 5
+    grosor_peque_base = 3
+
+    # Valores escalados (con un mínimo para que no desaparezcan)
+    pos_x = int(pos_x_base * escala)
+    pos_y = int(pos_y_base * escala)
+    salto_y = int(salto_y_base * escala)
+
+    font_grande = max(0.4, font_size_grande_base * escala)
+    font_peque = max(0.4, font_size_peque_base * escala)
+    grosor_grande = max(1, int(grosor_grande_base * escala))
+    grosor_peque = max(1, int(grosor_peque_base * escala))
 
     # --- Gestor con Filtro de Kalman ---
     gestor = GestorVehiculos(
@@ -128,36 +160,65 @@ def detectar_cochesV2(ruta_video, ruta_fondo,
                     texto_sentido = 'BAJA'
 
                 # --- Dibujar en pantalla ---
-                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), grosor_grande)
                 
-                # ID del vehículo
-                cv2.putText(frame, f"ID {v.id}", (x, y - 10), 
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,0), 1)
+                # ID del vehículo (este está por ENCIMA de la caja, así que no afecta al offset)
+                if mostrar_id:
+                    cv2.putText(frame, f"ID {v.id}", (x, y - int(10 * escala)), # Escalamos también el y-10
+                                cv2.FONT_HERSHEY_SIMPLEX, font_peque, (255,255,0), grosor_peque)
+                
+                # --- Lógica de Offset Dinámico ---
+                # 1. Definimos el salto de línea base (escalado)
+                salto_linea = int(24 * escala) # (ej. 15 píxeles para escala 1.0)
+                
+                # 2. Inicializamos el offset Y (justo debajo de la caja)
+                y_offset = y + h + salto_linea
                 
                 # Velocidad (magnitud)
-                cv2.putText(frame, f"{velocidad_mag:.1f} p/f", (x, y + h + 15), 
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 255, 255), 1)
+                if mostrar_texto_velocidad:
+                    cv2.putText(frame, f"{velocidad_mag:.1f} p/f", (x, y_offset), 
+                                cv2.FONT_HERSHEY_SIMPLEX, font_peque, (0, 255, 255), grosor_peque)
+                    
+                    # 3. Incrementamos el offset SOLO SI hemos dibujado
+                    y_offset += salto_linea 
                 
                 # Sentido (ahora usa las variables 'texto_sentido' y 'color_sentido')
-                cv2.putText(frame, texto_sentido, (x, y + h + 30), 
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.4, color_sentido, 1)
+                if mostrar_texto_sentido:
+                    # 4. Dibuja en la última posición del offset
+                    # (Si velocidad no se mostró, y_offset = y+h+15)
+                    # (Si velocidad SÍ se mostró, y_offset = y+h+30)
+                    cv2.putText(frame, texto_sentido, (x, y_offset), 
+                                cv2.FONT_HERSHEY_SIMPLEX, font_peque, color_sentido, grosor_peque)
         
-        # Dibujar contadores en pantalla
-        # Obtenemos el contador histórico (total de IDs únicos creados)
-        contador_historico = Vehiculo._next_id
-        # (Ajusta las coordenadas (20, 50) y (20, 90) si lo necesitas)
-        cv2.putText(frame, f"Vehiculos Activos: {contador_actual}", (65, 30), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
-        cv2.putText(frame, f"Total Historico: {contador_historico}", (65, 70), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
-        # --- Dibujar nuevos contadores de sentido (en tiempo real) ---
-        cv2.putText(frame, f"Subiendo: {contador_suben_rt}", (410, 30), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-        cv2.putText(frame, f"Bajando: {contador_bajan_rt}", (410, 70), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+        # --- Dibujar Contadores Globales ---
+        # Obtenemos el histórico (solo si se va a mostrar)
+        if mostrar_contador_historico:
+            contador_historico = Vehiculo._next_id
+
+        # --- Fila 1 ---
+        # Columna 1 (Activos)
+        if mostrar_contador_activos:
+            cv2.putText(frame, f"Vehiculos Activos: {contador_actual}", (pos_x, pos_y), 
+                        cv2.FONT_HERSHEY_SIMPLEX, font_grande, (0, 255, 255), grosor_grande)
+        
+        # Columna 2 (Subiendo)
+        if mostrar_contador_subiendo:
+            cv2.putText(frame, f"Subiendo: {contador_suben_rt}", (pos_x_col2, pos_y), 
+                        cv2.FONT_HERSHEY_SIMPLEX, font_grande, (0, 255, 0), grosor_grande)
+
+        # --- Fila 2 ---
+        # Columna 1 (Histórico)
+        if mostrar_contador_historico:
+            cv2.putText(frame, f"Total Historico: {contador_historico}", (pos_x, pos_y + salto_y), 
+                        cv2.FONT_HERSHEY_SIMPLEX, font_grande, (0, 255, 255), grosor_grande)
+        
+        # Columna 2 (Bajando)
+        if mostrar_contador_bajando:
+            cv2.putText(frame, f"Bajando: {contador_bajan_rt}", (pos_x_col2, pos_y + salto_y), 
+                        cv2.FONT_HERSHEY_SIMPLEX, font_grande, (0, 0, 255), grosor_grande)
 
         # Dibujamos la ROI en el frame original para debug
-        if roi_escalada:
+        if roi_escalada and mostrar_roi:
             cv2.rectangle(frame, (roi_escalada[2], roi_escalada[0]), (roi_escalada[3], roi_escalada[1]), (255, 0, 0), 2)
 
         cv2.imshow("Máscara", fgmask)
