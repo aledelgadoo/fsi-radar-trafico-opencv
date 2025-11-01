@@ -6,6 +6,7 @@ class GestorVehiculos:
     """
     Clase que gestiona todos los vehículos detectados y hace el seguimiento
     entre frames, manteniendo consistencia de IDs y estados.
+    Versión con Filtro de Kalman.
     """
     
     def __init__(self, umbral_distancia=50, max_frames_perdido=10):
@@ -14,7 +15,7 @@ class GestorVehiculos:
                           pertenece al mismo vehículo.
         max_frames_perdido: cuántos frames puede estar sin verse antes de desactivarlo.
         """
-        self.vehiculos = []  # lista de objetos hijos de vehiculos activos
+        self.vehiculos = []
         self.umbral_distancia = umbral_distancia
         self.max_frames_perdido = max_frames_perdido
 
@@ -24,63 +25,73 @@ class GestorVehiculos:
         Actualiza el estado de todos los vehículos a partir de las nuevas detecciones.
         
         detecciones: lista de bounding boxes [(x, y, w, h), ...] detectadas en este frame.
-        frame: imagen actual (para recortar coches si se quiere guardar frame_img).
-        frame_num: número del frame actual.
         """
+        
+        # --- PASO 1: PREDECIR ---
+        # Obtenemos la posición predicha para todos los vehículos activos
+        # y los guardamos en un diccionario {vehiculo: pos_predicha}
+        pos_predichas = {}
+        for v in self.vehiculos_activos():
+            pos_predichas[v] = v.predecir()
+
+        # --- PASO 2: PREPARAR DETECCIONES ---
         # Calculamos centroides de las nuevas detecciones
-        nuevos_centroides =  []
+        nuevos_centroides = []
         for bbox in detecciones:
             nuevos_centroides.append(self._centroide(bbox))
 
-        # Marcamos todos los vehículos como no actualizados inicialmente
-        actualizados = set()
+        # --- PASO 3: ASOCIAR Y CORREGIR (o CREAR) ---
+        vehiculos_actualizados = set()
 
-        # Intentamos asociar cada nueva detección a un vehículo existente
         for bbox, centroide in zip(detecciones, nuevos_centroides):
+            dist_min = self.umbral_distancia
             vehiculo_asociado = None
-            distancia_min = float('inf') # inicializamos la variable que usaremos más adelante
 
-            for vehiculo in self.vehiculos:
-                if not vehiculo.activo:
+            # Buscamos el vehículo (predicho) más cercano a esta detección
+            for v, pos_predicha in pos_predichas.items():
+                
+                # Si este vehículo ya fue asignado a otra detección, saltar
+                if v in vehiculos_actualizados:
                     continue
                     
-                d = vehiculo.distancia_a(centroide)
-                if d < self.umbral_distancia and d < distancia_min:
-                    distancia_min = d # si dos coches están lo suficientemente cerca, nos quedamos con el que más cerca esté
-                    vehiculo_asociado = vehiculo
+                dist = np.linalg.norm(np.array(pos_predicha) - np.array(centroide))
+                
+                if dist < dist_min:
+                    dist_min = dist
+                    vehiculo_asociado = v
             
             if vehiculo_asociado:
-                # Actualizamos vehículo existente
-                x, y, w, h = bbox
-                if frame is not None: # control de errores. ChatGPT recomendó escribir is not None
-                    frame_crop = frame_crop = frame[y:y+h, x:x+w]
-                else:
-                    frame_crop = None
-                vehiculo_asociado.actualizar(centroide, bbox, frame_num) # actualizar de Vehiculos no de Gestor
-                actualizados.add(vehiculo_asociado)
+                # --- CORREGIR ---
+                # Asociado: Corregimos el filtro con la medición real
+                vehiculo_asociado.corregir(centroide)
+                # Actualizamos su BBox y reseteamos contadores
+                vehiculo_asociado.bbox = bbox
+                vehiculo_asociado.frames_perdido = 0
+                vehiculo_asociado.frames_activo += 1
+                vehiculos_actualizados.add(vehiculo_asociado)
             
             else:
-                # Creamos nuevo vehículo
-                x, y, w, h = bbox
-                if frame is not None: # control de errores. ChatGPT recomendó escribir is not None
-                    frame_crop = frame_crop = frame[y:y+h, x:x+w]
-                else:
-                    frame_crop = None
-                nuevo = Coche(centroide, bbox, frame_crop, frame_num)
+                # --- CREAR ---
+                # No asociado: Es un vehículo nuevo
+                nuevo = Coche(centroide, bbox, frame_num)
                 self.vehiculos.append(nuevo)
         
-        # Para los no actualizados, marcamos como perdidos e inactivos
-        for vehiculo in self.vehiculos:
-            if vehiculo not in actualizados and vehiculo.activo:
-                vehiculo.marcar_perdido(self.max_frames_perdido)
+        # --- PASO 4: MARCAR PERDIDOS (Oclusión) ---
+        # Para los vehículos que predijimos pero que NO fueron actualizados
+        # (ej. ocultos tras una farola)
+        for v in pos_predichas.keys():
+            if v not in vehiculos_actualizados:
+                v.marcar_perdido(self.max_frames_perdido)
         
         
-        # --- NUEVO: limpieza de inactivos antiguos ---
-        vehiculos_activos = []
+        # --- PASO 5: LIMPIEZA DE INACTIVOS ANTIGUOS ---
+        vehiculos_activos_lista = []
         for v in self.vehiculos:
+            # Mantenemos los activos O los inactivos recientes
+            # (les damos un "tiempo de gracia" antes de borrarlos)
             if v.activo or v.frames_perdido < 1000:
-                vehiculos_activos.append(v)
-        self.vehiculos = vehiculos_activos
+                vehiculos_activos_lista.append(v)
+        self.vehiculos = vehiculos_activos_lista
 
 
     def _centroide(self, bbox):
@@ -91,8 +102,8 @@ class GestorVehiculos:
 
     def vehiculos_activos(self):
         """Devuelve solo los vehículos activos."""
-        vehiculos_activos = []              # Creamos una lista vacía
-        for v in self.vehiculos:            # Recorremos todos los vehículos
-            if v.activo:                    # Si el vehículo está activo
-                vehiculos_activos.append(v) # lo añadimos a la lista
-        return vehiculos_activos  
+        vehiculos_activos_lista = []
+        for v in self.vehiculos:
+            if v.activo:
+                vehiculos_activos_lista.append(v)
+        return vehiculos_activos_lista
