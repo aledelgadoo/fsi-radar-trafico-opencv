@@ -28,7 +28,7 @@ def detectar_cochesV2(ruta_video, background_img_path,
     # --- NUEVO: Definir la ROI (Región de Interés) ---
     # Coordenadas [y1, y2, x1, x2] basadas en el tamaño ORIGINAL (1920x1080)
     # Ignoramos el cielo (top 300px) y el timestamp (bottom 50px)
-    roi_base = [200, 965, 0, 1920] 
+    roi_base = [280, 965, 0, 1920] 
     
     # Escalamos la ROI
     roi_escalada = [
