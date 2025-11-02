@@ -167,13 +167,13 @@ def detectar_cochesV2(ruta_video, ruta_fondo,
 
     # --- Lógica de control orientación ---
     if orientacion_via == 'vertical':
-        label_sentido_1 = 'Subiendo (RT)'
-        label_sentido_2 = 'Bajando (RT)'
+        label_sentido_1 = 'Subiendo'
+        label_sentido_2 = 'Bajando'
         tag_sentido_1 = 'SUBE'
         tag_sentido_2 = 'BAJA'
     else: # Asumimos 'horizontal'
-        label_sentido_1 = 'Izquierda (RT)'
-        label_sentido_2 = 'Derecha (RT)'
+        label_sentido_1 = 'Izquierda'
+        label_sentido_2 = 'Derecha'
         tag_sentido_1 = 'IZQUIERDA'
         tag_sentido_2 = 'DERECHA'
 
