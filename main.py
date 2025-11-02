@@ -26,6 +26,9 @@ def main():
     p_mostrar_texto_sentido = True
     p_mostrar_id = True
     p_mostrar_roi = True
+    p_colorear_por = 'velocidad' # Opciones: None, 'sentido', 'tipo', 'velocidad'
+    p_vel_min_color = 0.4 # La velocidad MÍNIMA para empezar el gradiente (se verá Azul)
+    p_vel_max_color = 10.0  # La velocidad MÁXIMA (se verá Rojo)
 
     p_mostrar_contador_activos = True
     p_mostrar_contador_historico = True
@@ -62,6 +65,9 @@ def main():
         mostrar_texto_sentido=p_mostrar_texto_sentido,
         mostrar_id=p_mostrar_id,
         mostrar_roi=p_mostrar_roi,
+        colorear_por=p_colorear_por,
+        vel_min_color=p_vel_min_color,
+        vel_max_color=p_vel_max_color,
 
         mostrar_contador_activos=p_mostrar_contador_activos,
         mostrar_contador_historico=p_mostrar_contador_historico,

@@ -80,6 +80,9 @@ def detectar_cochesV2(ruta_video, ruta_fondo,
                        mostrar_texto_sentido=False,
                        mostrar_id=True,
                        mostrar_roi=True,
+                       colorear_por=None,
+                       vel_min_color=0.4,
+                       vel_max_color=10,
                        
                        mostrar_contador_activos=True,
                        mostrar_contador_historico=True,
@@ -320,7 +323,32 @@ def detectar_cochesV2(ruta_video, ruta_fondo,
                         y_offset += int(15 * escala)
                 
                 # --- Dibujar en pantalla ---
-                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), grosor_grande)
+                color_caja = (0, 255, 0) # Verde por defecto
+                # Lógica de color de la caja
+                if colorear_por == 'sentido':
+                    if v.sentido == tag_sentido_1: color_caja = (0, 255, 0) # Verde
+                    elif v.sentido == tag_sentido_2: color_caja = (0, 0, 255) # Rojo
+                    else: color_caja = (255, 0, 0) # Azul (detenido/indefinido)
+            
+                elif colorear_por == 'tipo':
+                    if v.tipo == 'Moto': color_caja = (255, 0, 255) # Magenta
+                    elif v.tipo == 'Camion': color_caja = (255, 255, 0) # Cyan
+                    else: color_caja = (0, 255, 0) # Coche (Verde)
+            
+                elif colorear_por == 'velocidad':
+                    # Normalizamos la velocidad (0.0 = lento, 1.0 = rápido)
+                    vel_norm = (velocidad_mag - vel_min_color) / (vel_max_color - vel_min_color)
+                    vel_norm = np.clip(vel_norm, 0.0, 1.0)
+                    
+                    # Creamos un gradiente simple Azul -> Rojo
+                    # (OpenCV es BGR, no RGB)
+                    R = int(vel_norm * 255)
+                    G = 0
+                    B = int((1 - vel_norm) * 255)
+                    color_caja = (B, G, R)
+
+                # --- ¡Dibujamos el rectángulo CON EL NUEVO COLOR! ---
+                cv2.rectangle(frame, (x, y), (x + w, y + h), color_caja, grosor_grande)
                 
                 # ID del vehículo (este está por ENCIMA de la caja, así que no afecta al offset)
                 if mostrar_id:
