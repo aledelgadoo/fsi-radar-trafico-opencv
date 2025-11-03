@@ -131,7 +131,7 @@ def detectar_cochesV2(ruta_video, ruta_fondo,
 
     # --- Cálculo de parámetros escalados ---
     min_area_escalada = min_area_base * (escala**2) # Ajusta el área (2D) de forma cuadrática a la escala
-    kernel_size_val = int(np.ceil(kernel_size_base * escala)) // 2 * 2 + 1 # Ajusta el kernel (1D) a la escala y fuerza que sea impar
+    kernel_size_val = int(np.ceil(kernel_size_base * escala)) // 2 * 2 + 1 # Ajusta el kernel (1D) a la escala y fuerza que sea impar (Truco matemático jugando con la división entera)
     kernel_escalado = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_size_val, kernel_size_val)) # Crea la matriz del kernel con el tamaño escalado
     umbral_dist_escalado = umbral_dist_base * escala # Ajusta la distancia (1D) de seguimiento a la escala
     umbral_fusion_escalado = umbral_fusion_base * escala # Ajusta la distancia (1D) de la escala
@@ -211,7 +211,7 @@ def detectar_cochesV2(ruta_video, ruta_fondo,
             # Método 2: Sustracción dinámica (MOG2)
             # (Se ejecuta solo si frame_num >= frames_calentamiento)
             fgmask_con_sombras = sustractor_fondo.apply(frame)
-            # Eliminamos las sombras (pixeles grises, valor 127)
+            # Eliminamos las sombras (pixeles grises, valor 127) (los pixeles mayores que 250 se pasan a 255 y el resto a 0)
             _, fgmask = cv2.threshold(fgmask_con_sombras, 250, 255, cv2.THRESH_BINARY)
         
         fgmask = cv2.bitwise_and(fgmask, mask_roi) # Aplica la máscara ROI (pone a negro todo lo que esté fuera de la región)
@@ -286,7 +286,7 @@ def detectar_cochesV2(ruta_video, ruta_fondo,
                     # 1. Calcular Aspect Ratio
                     # (Añadimos 'epsilon' para evitar dividir por cero si h=0)
                     epsilon = 1e-6 
-                    aspect_ratio = w / (h + epsilon)
+                    aspect_ratio = w / (h + epsilon) # si por error h da 0, sumarle epsilon hace que el programa no falle.
                     
                     # 2. Calcular Extent (Necesitamos el contorno original)
                     # --- Lógica de decisión ---
