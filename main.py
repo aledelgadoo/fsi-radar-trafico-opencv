@@ -18,16 +18,18 @@ def main():
     p_roi_base = [280, 965, 0, 1920]
     p_metodo_fondo = 'estatico' # 'estatico' (con imagen) o 'dinamico' (con MOG2)
     p_frames_calentamiento_mog2 = 100 # Cuántos frames "ignorar" al inicio para que MOG2 aprenda el fondo
-    p_orientacion_via = 'horizontal' # 'vertical' (suben / bajan) o 'horizontal' (izq. / der.)
+    p_orientacion_via = 'vertical' # 'vertical' (suben / bajan) o 'horizontal' (izq. / der.)
+    p_factor_perspectiva_max = 10
 
     p_filtro_sentido = None
     p_mostrar_texto_velocidad = True
     p_mostrar_texto_sentido = True
     p_mostrar_id = True
     p_mostrar_roi = True
-    p_colorear_por = None # Opciones: None, 'sentido', 'tipo', 'velocidad'
-    p_vel_min_color = 0.4 # La velocidad MÍNIMA para empezar el gradiente (se verá Azul)
-    p_vel_max_color = 10.0  # La velocidad MÁXIMA (se verá Rojo)
+    p_colorear_por = 'velocidad' # Opciones: None, 'sentido', 'tipo', 'velocidad'
+    p_vel_min_color = 4 # La velocidad MÍNIMA para empezar el gradiente (se verá Azul)
+    p_vel_max_color = 20  # La velocidad MÁXIMA (se verá Rojo)
+    p_pixeles_por_metro = 37.1
 
     p_mostrar_contador_activos = True
     p_mostrar_contador_historico = True
@@ -58,6 +60,8 @@ def main():
         metodo_fondo=p_metodo_fondo,
         frames_calentamiento=p_frames_calentamiento_mog2,
         orientacion_via=p_orientacion_via,
+        factor_perspectiva_max=p_factor_perspectiva_max,
+        pixeles_por_metro=p_pixeles_por_metro,
 
         filtro_sentido=p_filtro_sentido,
         mostrar_texto_velocidad=p_mostrar_texto_velocidad,
@@ -98,6 +102,8 @@ def probar_trafico2():
         frames_para_confirmar=8,
         metodo_fondo='estatico',
         frames_calentamiento=100,
+        factor_perspectiva_max=20,
+        pixeles_por_metro=55,
         filtro_sentido=None,
         mostrar_texto_velocidad=True,
         mostrar_texto_sentido=True,
@@ -116,4 +122,4 @@ def probar_trafico2():
     )
 
 if __name__ == "__main__":
-    main()
+    probar_trafico2()

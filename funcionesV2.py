@@ -74,6 +74,8 @@ def detectar_cochesV2(ruta_video, ruta_fondo,
                        metodo_fondo='estatico',
                        frames_calentamiento=100,
                        orientacion_via='vertical',
+                       factor_perspectiva_max=3.0,
+                       pixeles_por_metro = 37.1,
                        
                        filtro_sentido=None,
                        mostrar_texto_velocidad=False,
@@ -100,6 +102,10 @@ def detectar_cochesV2(ruta_video, ruta_fondo,
     cap = leer_video(ruta_video)
     original_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))   # Ancho original
     original_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)) # Alto original
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    if fps == 0: # Si el vídeo no tiene metadatos de FPS
+        print("ADVERTENCIA: No se pudo leer el FPS del vídeo. Usando 30 por defecto.")
+        fps = 30.0 # Usamos un valor estándar
 
     # Redimensionamos según la escala
     new_size = (int(original_width * escala), int(original_height * escala))
@@ -257,8 +263,31 @@ def detectar_cochesV2(ruta_video, ruta_fondo,
                 vx, vy = v.velocidad # Obtiene la velocidad (vx, vy) estimada por el Filtro de Kalman
                 
                 # 1. Calcular la magnitud de la velocidad (velocidad en p/f)
-                velocidad_mag = np.linalg.norm(v.velocidad) # Calcula la magnitud del vector velocidad (Pitágoras) para tener un solo número (píxeles/frame)
-                
+                velocidad_mag_bruta = np.linalg.norm(v.velocidad)
+                factor_correccion = 1.0
+            
+                # Solo aplicamos corrección si la ROI está definida Y la vía es vertical
+                if roi_base is not None and orientacion_via == 'vertical':
+                    # Coordenadas Y de la ROI escalada
+                    y1_roi = roi_escalada[0]
+                    y2_roi = roi_escalada[1]
+                    
+                    # Posición Y actual del coche
+                    y_coche = v.centroide[1] # v.centroide es (x,y)
+                    
+                    # Normalizamos la posición Y (0.0 = lejos/arriba, 1.0 = cerca/abajo)
+                    # (Añadimos 1e-6 para evitar dividir por cero si la ROI es plana)
+                    y_relativa = (y_coche - y1_roi) / (y2_roi - y1_roi + 1e-6)
+                    y_relativa = np.clip(y_relativa, 0.0, 1.0) # Nos aseguramos que esté entre 0 y 1
+                    
+                    # Interpolación lineal:
+                    # Si y_relativa=0 (lejos), factor = factor_perspectiva_max
+                    # Si y_relativa=1 (cerca), factor = 1.0
+                    factor_correccion = factor_perspectiva_max - (y_relativa * (factor_perspectiva_max - 1.0))
+
+                # 3. Calcular la velocidad final corregida
+                velocidad_corregida = velocidad_mag_bruta * factor_correccion
+
                 # 2. Si el sentido del coche aún no está definido
                 if not v.sentido and v.frames_activo > 13: # Solo fijamos la velocidad si el coche ya lleva >12 frames
                     # Comprobamos si la velocidad en Y es lo bastante fuerte para "fijarlo"
@@ -323,7 +352,7 @@ def detectar_cochesV2(ruta_video, ruta_fondo,
             
                 elif colorear_por == 'velocidad':
                     # Normalizamos la velocidad (0.0 = lento, 1.0 = rápido)
-                    vel_norm = (velocidad_mag - vel_min_color) / (vel_max_color - vel_min_color)
+                    vel_norm = (velocidad_corregida - vel_min_color) / (vel_max_color - vel_min_color)
                     vel_norm = np.clip(vel_norm, 0.0, 1.0)
                     
                     # Creamos un gradiente simple Azul -> Rojo
@@ -365,7 +394,24 @@ def detectar_cochesV2(ruta_video, ruta_fondo,
                 
                 # Velocidad (magnitud)
                 if mostrar_texto_velocidad:
-                    cv2.putText(frame, f"{velocidad_mag:.1f} p/f", (x, y_offset), 
+                    # --- ¡NUEVO CÁLCULO m/s! ---
+                    
+                    # 1. (unidades / frame) * (frames / segundo) = (unidades / segundo)
+                    #    (velocidad_corregida ya es p/f en la zona 1.0)
+                    velocidad_ups = velocidad_corregida * fps
+                    
+                    # 2. (unidades / segundo) / (unidades / metro) = (metros / segundo)
+                    velocidad_ms = velocidad_ups / pixeles_por_metro
+                    
+                    # (Opcional: Si prefieres km/h, descomenta la siguiente línea)
+                    velocidad_kmh = velocidad_ms * 3.6
+                    
+                    # Escribimos el resultado (ej. "8.2 m/s")
+                    #cv2.putText(frame, f"{velocidad_ms:.1f} m/s", (x, y_offset), 
+                    #            cv2.FONT_HERSHEY_SIMPLEX, font_peque, (0, 255, 255), grosor_peque)
+                    
+                    # (Si usaste km/h, cambia la línea de arriba por esta)
+                    cv2.putText(frame, f"{velocidad_kmh:.1f} km/h", (x, y_offset), 
                                 cv2.FONT_HERSHEY_SIMPLEX, font_peque, (0, 255, 255), grosor_peque)
                     
                     # 3. Incrementamos el offset SOLO SI hemos dibujado
@@ -430,7 +476,7 @@ def detectar_cochesV2(ruta_video, ruta_fondo,
         cv2.imshow("Máscara", fgmask)
         cv2.imshow("Video Original", frame)
 
-        if cv2.waitKey(30) & 0xFF == 27:  # ESC, ajustar waitKey para velocidad reproducción
+        if cv2.waitKey(1) & 0xFF == 27:  # ESC, ajustar waitKey para velocidad reproducción
             break
 
     cap.release()
