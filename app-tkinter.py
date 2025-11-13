@@ -4,18 +4,12 @@ from PIL import Image, ImageTk
 import cv2
 import numpy as np
 import os
-import re
-import json # Importamos JSON
+import json
 
-# --- Importamos TODO tu backend ---
+# --- Importamos el backend ---
 from gestor_vehiculos import GestorVehiculos
 from vehiculos import Vehiculo
-from functions import (
-    leer_video,
-    fusionar_detecciones_cercanas, 
-    _calcular_centroide_bbox,
-    obtener_fondo
-)
+from functions import *
 
 class RadarApp:
     def __init__(self, root):
@@ -35,7 +29,7 @@ class RadarApp:
         self.fps = 30.0
         self.video_path = None
         self.fondo_path = None
-        self.new_size = (0, 0) # ¡Definido en el init para evitar errores!
+        self.new_size = (0, 0) # Para evitar errores
 
         self.params_vars = {} 
         self.params = {} 
@@ -81,7 +75,7 @@ class RadarApp:
         self.btn_gen_bg = ttk.Button(frame, text="Generar Fondo desde Vídeo", command=self.generar_fondo)
         self.btn_gen_bg.pack(fill=tk.X, expand=True, padx=5, pady=5)
 
-        # --- ¡NUEVO! Botones de Cargar/Guardar Configuración ---
+        # --- Botones de Cargar/Guardar Configuración ---
         frame_config = ttk.Frame(frame)
         frame_config.pack(fill=tk.X, pady=5)
         self.btn_load_config = ttk.Button(frame_config, text="Cargar Config (.json)", command=self.load_config)
@@ -104,7 +98,7 @@ class RadarApp:
         notebook = ttk.Notebook(frame)
         notebook.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
-        # --- Variables de Tkinter (con tus defaults) ---
+        # --- Variables de Tkinter (con los defaults para trafico.mp4) ---
         self.params_vars["escala"] = tk.DoubleVar(value=0.5)
         self.params_vars["umbral_sensibilidad"] = tk.IntVar(value=30)
         self.params_vars["umbral_fusion_base"] = tk.IntVar(value=60)
@@ -141,7 +135,7 @@ class RadarApp:
         
         # --- Pestaña 1: Calibración ---
         tab_cal = ttk.Frame(notebook)
-        notebook.add(tab_cal, text='📈 Calibración')
+        notebook.add(tab_cal, text='Calibración')
         self.crear_slider(tab_cal, "Escala de Procesamiento:", self.params_vars["escala"], 0.1, 1.0, 0.05)
         self.crear_radio(tab_cal, "Orientación Vía:", self.params_vars["orientacion_via"], ["vertical", "horizontal"])
         ttk.Label(tab_cal, text="ROI Base (y1, y2, x1, x2):").pack(anchor=tk.W)
@@ -152,7 +146,7 @@ class RadarApp:
 
         # --- Pestaña 2: Detección ---
         tab_det = ttk.Frame(notebook)
-        notebook.add(tab_det, text='👁️ Detección')
+        notebook.add(tab_det, text='Detección')
         self.crear_radio(tab_det, "Método de Fondo:", self.params_vars["metodo_fondo"], ["estatico", "dinamico"])
         self.crear_slider(tab_det, "Calentamiento MOG2 (frames):", self.params_vars["frames_calentamiento"], 0, 500, 10)
         self.crear_slider(tab_det, "Sensibilidad Detección:", self.params_vars["umbral_sensibilidad"], 1, 255, 1)
@@ -162,15 +156,14 @@ class RadarApp:
 
         # --- Pestaña 3: Tracking ---
         tab_track = ttk.Frame(notebook)
-        notebook.add(tab_track, text='🎯 Tracking')
+        notebook.add(tab_track, text='Tracking')
         self.crear_slider(tab_track, "Distancia Asociación:", self.params_vars["umbral_dist_base"], 10, 500, 5)
         self.crear_slider(tab_track, "Paciencia Oclusión (frames):", self.params_vars["max_frames_perdido"], 1, 100, 1)
         self.crear_slider(tab_track, "Confirmación (frames):", self.params_vars["frames_para_confirmar"], 1, 50, 1)
         
         # --- Pestaña 4: Visualización ---
         tab_vis = ttk.Frame(notebook)
-        notebook.add(tab_vis, text='🖥️ Visualización')
-        # ... (Checkbuttons) ...
+        notebook.add(tab_vis, text='Visualización')
         ttk.Checkbutton(tab_vis, text="Mostrar Contadores", variable=self.params_vars["mostrar_contadores"]).pack(anchor=tk.W)
         ttk.Checkbutton(tab_vis, text="Mostrar ID", variable=self.params_vars["mostrar_id"]).pack(anchor=tk.W)
         ttk.Checkbutton(tab_vis, text="Mostrar Velocidad", variable=self.params_vars["mostrar_texto_velocidad"]).pack(anchor=tk.W)
@@ -184,14 +177,13 @@ class RadarApp:
 
         # --- Pestaña 5: Clasificación ---
         tab_class = ttk.Frame(notebook)
-        notebook.add(tab_class, text='🚗 Clasificación')
+        notebook.add(tab_class, text='Clasificación')
         self.crear_slider(tab_class, "Área Máx. Moto (Base):", self.params_vars["area_moto_max_base"], 100, 10000, 100)
         self.crear_slider(tab_class, "Área Máx. Coche (Base):", self.params_vars["area_coche_max_base"], 1000, 50000, 100)
         self.crear_slider(tab_class, "Aspect Ratio Máx. Moto (w/h):", self.params_vars["aspect_ratio_moto_max"], 0.1, 2.0, 0.05)
         self.crear_slider(tab_class, "Aspect Ratio Mín. Camión (w/h):", self.params_vars["aspect_ratio_camion_min"], 0.5, 3.0, 0.05)
 
     def crear_slider(self, parent, label, variable, from_, to, step=1.0):
-        # --- ¡MEJORA! Muestra el valor del slider ---
         frame = ttk.Frame(parent)
         frame.pack(fill=tk.X, padx=5, pady=2)
         ttk.Label(frame, text=label).pack(anchor=tk.W)
@@ -220,9 +212,7 @@ class RadarApp:
             command=on_slide,
             length=300,
             # Corregido: 'resolution' no es un param de ttk.Scale, 
-            # pero el 'step' en la lógica del slider se maneja con 'command'
-            # y el 'step' del 'Scale' es implícito. 
-            # Para steps decimales, el 'DoubleVar' es suficiente.
+            # pero el 'step' en la lógica del slider se maneja con 'command' y el 'step' del 'Scale' es implícito. 
         ).pack(fill=tk.X, expand=True)
 
     def crear_radio(self, parent, label, variable, values):
@@ -233,7 +223,6 @@ class RadarApp:
             ttk.Radiobutton(frame, text=val.capitalize(), variable=variable, value=val).pack(side=tk.LEFT, padx=5)
 
     def setup_panel_video(self):
-        # ... (Función sin cambios, con el fix de 'grid_columnconfigure') ...
         frame_metricas = ttk.LabelFrame(self.frame_principal, text="Contadores en Tiempo Real")
         frame_metricas.pack(fill=tk.X, pady=5)
         
@@ -280,7 +269,7 @@ class RadarApp:
             self.fondo_path = path
             self.lbl_bg_path.config(text=os.path.basename(path))
 
-    # --- ¡NUEVAS FUNCIONES DE CONFIGURACIÓN! ---
+    # --- Funciones de configuración ---
     def load_config(self):
         """Carga los parámetros desde un fichero JSON."""
         if self.processing_active:
@@ -325,14 +314,13 @@ class RadarApp:
         except Exception as e:
             messagebox.showerror("Error", f"No se pudo guardar el fichero JSON: {e}")
 
-    # --- ¡FUNCIÓN GENERAR FONDO MEJORADA! ---
     def generar_fondo(self):
         """Llama a 'obtener_fondo' con feedback visual y sin bloquear"""
         if not self.video_path:
             messagebox.showerror("Error", "Carga un vídeo primero para poder generarle un fondo.")
             return
         
-        # --- ¡ARREGLO! Evitar que se ejecute si el vídeo está corriendo ---
+        # --- Evitar que se ejecute si el vídeo está corriendo ---
         if self.processing_active:
             messagebox.showwarning("Aviso", "Detén el procesamiento actual antes de generar un fondo.")
             return
@@ -340,6 +328,12 @@ class RadarApp:
         # 1. Crear el popup de "Cargando"
         popup = tk.Toplevel(self.root)
         popup.title("Procesando")
+        popup.update_idletasks()  # Asegura que se calcule correctamente el tamaño
+        ancho, alto = 300, 100
+        x = (popup.winfo_screenwidth() // 2) - (ancho // 2)
+        y = (popup.winfo_screenheight() // 2) - (alto // 2)
+
+        popup.geometry(f"{ancho}x{alto}+{x}+{y}")   
         popup.geometry("300x100")
         popup.transient(self.root)
         popup.grab_set() 
@@ -360,13 +354,12 @@ class RadarApp:
             popup.destroy()
             messagebox.showerror("Error", f"No se pudo generar el fondo: {e}")
 
-    # --- ¡FUNCIÓN START MEJORADA! ---
     def start_processing(self):
         if not self.video_path:
             messagebox.showerror("Error", "¡Por favor, carga un vídeo primero!")
             return
             
-        # --- ¡ARREGLO! Resetear el contador histórico ---
+        # --- Resetear el contador histórico ---
         Vehiculo._next_id = 0
             
         self.params = {key: var.get() for key, var in self.params_vars.items()}
@@ -391,7 +384,7 @@ class RadarApp:
         
         self.frame_num = 0
         
-        # --- ¡ARREGLO! Definir new_size ANTES de usarlo ---
+        # --- Definir new_size ANTES de usarlo ---
         escala = self.params["escala"]
         w = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH) * escala)
         h = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT) * escala)
@@ -424,7 +417,7 @@ class RadarApp:
                 return
             
             try:
-                # --- ¡ARREGLO! Usamos el método de numpy para leer paths con 'º' ---
+                # --- Usamos el método de numpy para leer paths con 'º' ---
                 with open(self.fondo_path, "rb") as f:
                     bytes_leidos = f.read()
                 numpy_array = np.asarray(bytearray(bytes_leidos), dtype=np.uint8)
@@ -448,7 +441,7 @@ class RadarApp:
         self.processing_active = True
         self.btn_start.config(state=tk.DISABLED)
         self.btn_stop.config(state=tk.NORMAL)
-        # --- ¡ARREGLO! Desactivar botones ---
+        # --- Desactivar botones ---
         self.btn_gen_bg.config(state=tk.DISABLED)
         self.btn_load_video.config(state=tk.DISABLED)
         self.btn_load_bg.config(state=tk.DISABLED)
@@ -463,7 +456,7 @@ class RadarApp:
             self.cap.release()
         self.btn_start.config(state=tk.NORMAL)
         self.btn_stop.config(state=tk.DISABLED)
-        # --- ¡ARREGLO! Reactivar botones ---
+        # --- Reactivar botones ---
         self.btn_gen_bg.config(state=tk.NORMAL)
         self.btn_load_video.config(state=tk.NORMAL)
         self.btn_load_bg.config(state=tk.NORMAL)
