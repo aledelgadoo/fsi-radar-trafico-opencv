@@ -1,9 +1,10 @@
 import numpy as np
 from functions import *
+import json
 
 def main():
     p_ruta_video = 'videos/trafico.mp4'
-    p_ruta_fondo = 'images/(trafico)-fondo_sin_coches.jpg' 
+    p_ruta_fondo = 'images/trafico-fondo_sin_coches.jpg' 
     
     # --- Panel de control de parámetros ---
     p_escala = 0.5              
@@ -25,7 +26,7 @@ def main():
     p_mostrar_texto_sentido = True
     p_mostrar_id = True
     p_mostrar_roi = True
-    p_colorear_por = 'velocidad' # Opciones: None, 'sentido', 'tipo', 'velocidad'
+    p_colorear_por = 'none' # Opciones: None, 'sentido', 'tipo', 'velocidad'
     p_vel_min_color = 4 # La velocidad MÍNIMA para empezar el gradiente (se verá Azul)
     p_vel_max_color = 20  # La velocidad MÁXIMA (se verá Rojo)
     p_pixeles_por_metro = 37.1
@@ -120,5 +121,11 @@ def probar_trafico2():
         mostrar_tipo_coche=True
     )
 
+def probar_trafico3():
+    with open("parametros_video/trafico3-parametros.json", "r") as f:
+        config = json.load(f)
+    
+    detectar_cochesV2(**config)
+
 if __name__ == "__main__":
-    probar_trafico2()
+    probar_trafico3()
