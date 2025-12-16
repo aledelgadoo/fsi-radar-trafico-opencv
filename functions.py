@@ -4,7 +4,7 @@ import re
 from gestor_vehiculos import *
 from vehiculos import *
 
-
+# ----- FUNCIONES AUXILIARES -----
 def leer_video(video):
     """
     Lee un vídeo desde la ruta <video> y devuelve el objeto de captura (cv2.VideoCapture).
@@ -14,6 +14,7 @@ def leer_video(video):
         print(f"Error! No se pudo abrir el vídeo en: {video}")
         exit()
     return cap
+
 
 def obtener_fondo(video):
     """
@@ -57,11 +58,9 @@ def obtener_fondo(video):
     else:
         filename_base = "fondo_calculado" 
 
-    # Corregido: sin paréntesis en el nombre
     ruta_salida = f'images/{filename_base}-fondo_sin_coches.jpg' 
 
-    # --- ¡ARREGLO PARA CARACTERES ESPECIALES (º)! ---
-    # (cv2.imwrite no maneja bien 'º' en las rutas de Windows)
+    # --- Corección del error para guardar la imagen ---
     try:
         is_success, buffer = cv2.imencode(".jpg", promedio)
         if not is_success:
@@ -77,10 +76,12 @@ def obtener_fondo(video):
         print(f"Error al guardar el fondo (error de path): {e}")
         raise e # Lanzamos el error para que la GUI lo capture
 
+
 def _calcular_centroide_bbox(bbox):
     """Calcula el centroide (x_c, y_c) de un bounding box (x, y, w, h)."""
     x, y, w, h = bbox
     return np.array([x + w / 2, y + h / 2])
+
 
 def fusionar_detecciones_cercanas(detecciones, umbral_distancia):
     """
@@ -123,6 +124,7 @@ def fusionar_detecciones_cercanas(detecciones, umbral_distancia):
     return detecciones_limpias
 
 
+# ----- FUNCIÓN PRINCIPAL -----
 def detectar_cochesV2(ruta_video, ruta_fondo, 
                        escala=0.5, 
                        roi_base=None,
@@ -199,7 +201,7 @@ def detectar_cochesV2(ruta_video, ruta_fondo,
 
     # --- Cálculo de parámetros escalados ---
     min_area_escalada = min_area_base * (escala**2) # Ajusta el área (2D) de forma cuadrática a la escala
-    kernel_size_val = int(np.ceil(kernel_size_base * escala)) // 2 * 2 + 1 # Ajusta el kernel (1D) a la escala y fuerza que sea impar (Truco matemático jugando con la división entera)
+    kernel_size_val = int(np.ceil(kernel_size_base * escala)) // 2 * 2 + 1 # Ajusta el kernel (1D) a la escala y fuerza que sea impar
     kernel_escalado = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_size_val, kernel_size_val)) # Crea la matriz del kernel con el tamaño escalado
     umbral_dist_escalado = umbral_dist_base * escala # Ajusta la distancia (1D) de seguimiento a la escala
     umbral_fusion_escalado = umbral_fusion_base * escala # Ajusta la distancia (1D) de la escala
@@ -364,26 +366,24 @@ def detectar_cochesV2(ruta_video, ruta_fondo,
                 # 3. Filtro de Sentido
                 if filtro_sentido is not None and v.sentido != filtro_sentido:
                     continue
-                
-                # --- Si pasa todos los filtros, lo contamos y dibujamos ---
-                contador_actual += 1
+
+                #  Si pasa todos los filtros, lo contamos y dibujamos
+                contador_actual += 1 
 
                 # --- Lógica de Clasificación por Tipo ---
-                # Si el tipo aún no está definido...
+                # Definir el tipo del vehículo
                 if v.tipo == 'Indefinido':
                     x, y, w, h = v.bbox # Extraemos los valores de la caja
                     area_bbox = w * h # Calculamos el área de su BBox (w * h)
                     
-                    # 1. Calcular Aspect Ratio
-                    # (Añadimos 'epsilon' para evitar dividir por cero si h=0)
-                    epsilon = 1e-6 
-                    aspect_ratio = w / (h + epsilon) # si por error h da 0, sumarle epsilon hace que el programa no falle.
+                    # Calcular Aspect Ratio
+                    epsilon = 1e-6  # (Añadimos 'epsilon' para evitar dividir por cero si h=0)
+                    aspect_ratio = w / (h + epsilon)  # si por error h da 0, sumarle epsilon hace que el programa no falle.
                     
-                    # 2. Calcular Extent (Necesitamos el contorno original)
                     # --- Lógica de decisión ---
                     if area_bbox < area_moto_max_escalada and aspect_ratio < 0.8:
                         v.tipo = 'Moto'
-                    elif area_bbox > area_coche_max_escalada and aspect_ratio > 1: # Ej: Camión
+                    elif area_bbox > area_coche_max_escalada and aspect_ratio > 1:
                         v.tipo = 'Camion'
                     else:
                         v.tipo = 'Coche'
@@ -401,6 +401,7 @@ def detectar_cochesV2(ruta_video, ruta_fondo,
                 
                 # --- Dibujar en pantalla ---
                 color_caja = (0, 255, 0) # Verde por defecto
+                
                 # -- Lógica de color de la caja --
                 if colorear_por == 'sentido':
                     if v.sentido == tag_sentido_1: color_caja = (0, 255, 0) # Verde
@@ -449,14 +450,13 @@ def detectar_cochesV2(ruta_video, ruta_fondo,
                 
                 # --- Lógica de Offset Dinámico ---
                 # 1. Definimos el salto de línea base (escalado)
-                salto_linea = int(24 * escala) # (ej. 15 píxeles para escala 1.0)
+                salto_linea = int(24 * escala)
                 
                 # 2. Inicializamos el offset Y (justo debajo de la caja)
                 y_offset = y + h + salto_linea
                 
                 # Velocidad (magnitud)
                 if mostrar_texto_velocidad:
-                    # --- ¡NUEVO CÁLCULO m/s! ---
                     
                     # 1. (unidades / frame) * (frames / segundo) = (unidades / segundo)
                     #    (velocidad_corregida ya es p/f en la zona 1.0)
@@ -465,14 +465,10 @@ def detectar_cochesV2(ruta_video, ruta_fondo,
                     # 2. (unidades / segundo) / (unidades / metro) = (metros / segundo)
                     velocidad_ms = velocidad_ups / pixeles_por_metro
                     
-                    # (Opcional: Si prefieres km/h, descomenta la siguiente línea)
+                    # Calculamos km/h
                     velocidad_kmh = velocidad_ms * 3.6
                     
-                    # Escribimos el resultado (ej. "8.2 m/s")
-                    #cv2.putText(frame, f"{velocidad_ms:.1f} m/s", (x, y_offset), 
-                    #            cv2.FONT_HERSHEY_SIMPLEX, font_peque, (0, 255, 255), grosor_peque)
-                    
-                    # (Si usaste km/h, cambia la línea de arriba por esta)
+
                     cv2.putText(frame, f"{velocidad_kmh:.1f} km/h", (x, y_offset), 
                                 cv2.FONT_HERSHEY_SIMPLEX, font_peque, (0, 255, 255), grosor_peque)
                     
