@@ -1,7 +1,7 @@
 # 🚗 Análisis de Tráfico con Visión Artificial y OpenCV
 **Autores:** Alejandro Delgado y Tomás Santana  
-**Asignatura:** Fundamentos de Sistemas Inteligentes  
-**Universidad de Las Palmas de Gran Canaria**  
+**Asignatura:** Fundamentos de los Sistemas Inteligentes *(Práctica 1)*  
+**Universidad de Las Palmas de Gran Canaria - Curso 25/26**  
 **Versión:** v1.0  
 
 ---
